@@ -1,7 +1,7 @@
 import streamlit as st
 import lancedb
-import pandas as pd
-from sentence_transformers import SentenceTransformer
+import pandas as pd # type: ignore
+from sentence_transformers import SentenceTransformer # type: ignore
 
 # Initialize session state
 if 'query' not in st.session_state:

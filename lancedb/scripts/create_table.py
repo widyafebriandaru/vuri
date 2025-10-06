@@ -1,5 +1,5 @@
 import lancedb
-import pyarrow as pa
+import pyarrow as pa # type: ignore
 
 # Connect to LanceDB (path is inside container, mapped to ./my_lancedb on host)
 db = lancedb.connect("my_lancedb")
