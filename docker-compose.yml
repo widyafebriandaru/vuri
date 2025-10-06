@@ -5,16 +5,17 @@ services:
     build: ./lancedb
     container_name: lancedb
     volumes:
-      - ./my_lancedb:/app/my_lancedb   # shared database
+      - ./my_lancedb:/app/my_lancedb
     restart: on-failure
 
   streamlit:
     build: ./streamlit
     container_name: lancedb_streamlit
     ports:
-      - "8501:8501"     # Streamlit UI
+      - "8501:8501"
     volumes:
-      - ./my_lancedb:/app/my_lancedb   # same DB folder shared
+      - ./my_lancedb:/app/my_lancedb
+      - ./images:/app/images        # ✅ mount images folder
     depends_on:
       - lancedb
     restart: unless-stopped
@@ -23,9 +24,10 @@ services:
     build: ./vuri
     container_name: vuri
     ports:
-      - "8502:8502"     # Streamlit UI
+      - "8502:8502"
     volumes:
-      - ./my_lancedb:/app/my_lancedb   # same DB folder shared
+      - ./my_lancedb:/app/my_lancedb
+      - ./images:/app/images        # ✅ mount images folder
     depends_on:
       - lancedb
     restart: unless-stopped

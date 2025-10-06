@@ -37,15 +37,16 @@ if uploaded_file:
     df["description"] = df[1].apply(clean_text)  # column B
     df["code"] = df[2]               # column C
     df["classification"] = df[3]     # column D
+    df["url"] = df[4] # column E
 
     # ✅ Generate embeddings dari kolom "description"
     df["vector"] = df["description"].apply(lambda x: model.encode(x).tolist())
 
     # ✅ Preview data yang akan diinsert
-    st.write("📋 Preview parsed data:", df[["name", "description", "code", "classification"]].head())
+    st.write("📋 Preview parsed data:", df[["name", "description", "code", "classification", "url"]].head())
 
     # ✅ Insert all
     if st.button("Insert All into LanceDB"):
-        records = df[["name", "description", "code", "classification", "vector"]].to_dict(orient="records")
+        records = df[["name", "description", "code", "classification", "vector", "url"]].to_dict(orient="records")
         table.add(records)
         st.success(f"✅ Inserted {len(records)} records into LanceDB")
