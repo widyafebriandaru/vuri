@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+# Install dependencies (including Streamlit + embeddings model support)
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY /scripts/vuri.py /app/
+
+EXPOSE 8502
+
+CMD ["streamlit", "run", "vuri.py", "--server.address=0.0.0.0", "--server.port=8502"]
+
