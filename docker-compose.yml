@@ -31,3 +31,6 @@ services:
     depends_on:
       - lancedb
     restart: unless-stopped
+
+
+

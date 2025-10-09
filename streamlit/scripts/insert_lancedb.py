@@ -46,7 +46,17 @@ if uploaded_file:
     st.write("📋 Preview parsed data:", df[["name", "description", "code", "classification", "url"]].head())
 
     # ✅ Insert all
-    if st.button("Insert All into LanceDB"):
-        records = df[["name", "description", "code", "classification", "vector", "url"]].to_dict(orient="records")
-        table.add(records)
-        st.success(f"✅ Inserted {len(records)} records into LanceDB")
+if st.button("Insert All into LanceDB"):
+    # Create a copy to avoid modifying the original DataFrame
+    df_copy = df.copy()
+
+    # Automatically add "images/" prefix to the 'url' column
+    df_copy["url"] = df_copy["url"].apply(lambda x: f"images/{x}" if not str(x).startswith("images/") else x)
+
+    # Convert to list of dicts for LanceDB
+    records = df_copy[["name", "description", "code", "classification", "vector", "url"]].to_dict(orient="records")
+
+    # Insert into LanceDB
+    table.add(records)
+
+    st.success(f"✅ Inserted {len(records)} records into LanceDB")
