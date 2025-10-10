@@ -11,7 +11,7 @@ db = lancedb.connect("my_lancedb")
 table = db.open_table("ahsp")
 
 # Load embedding model
-model = SentenceTransformer("all-mpnet-base-v2")
+model = SentenceTransformer("all-mpnet-base-v2", device="cpu")
 
 st.title("LanceDB AHSP Manager")
 
