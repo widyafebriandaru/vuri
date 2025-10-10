@@ -51,7 +51,9 @@ if st.button("Insert All into LanceDB"):
     df_copy = df.copy()
 
     # Automatically add "images/" prefix to the 'url' column
-    df_copy["url"] = df_copy["url"].apply(lambda x: f"images/{x}" if not str(x).startswith("images/") else x)
+    # df_copy["url"] = df_copy["url"].apply(lambda x: f"images/{x}" if not str(x).startswith("images/") else x)
+    df_copy["url"] = df_copy["url"].apply(
+    lambda x: f"images/{str(x).removeprefix('images/').removesuffix('.png')}.png")
 
     # Convert to list of dicts for LanceDB
     records = df_copy[["name", "description", "code", "classification", "vector", "url"]].to_dict(orient="records")
