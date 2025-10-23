@@ -4,10 +4,18 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 import requests
 import os
+import numpy as np
+from difflib import SequenceMatcher
+import re
 
 # ======================
 # Session State & Model
 # ======================
+st.set_page_config(
+    page_title="VURI",
+    initial_sidebar_state="collapsed"
+)
+
 if "query" not in st.session_state:
     st.session_state.query = ""
 if "ai_responses" not in st.session_state:
@@ -24,7 +32,7 @@ model = load_model_safely()
 db = lancedb.connect("my_lancedb")
 table = db.open_table("ahsp")
 
-st.header("VURI")
+st.header("(VURI) Verifikasi item Untuk RAB Inpres")
 
 # ======================
 # Input Fields
@@ -45,6 +53,55 @@ search_type = st.radio(
 # ======================
 # Search Logic
 # ======================
+############################Sidebar###############################
+st.sidebar.header("⚙️ Pengaturan Pencarian")
+theme = st.sidebar.radio("Tampilan", ["🌞 Terang", "🌙 Gelap"], horizontal=True)
+
+# Optional exact match toggle
+exact_match = st.sidebar.toggle("Hanya tampilkan hasil mirip 100%", value=False)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🧩 Manajemen Data")
+st.sidebar.write("Update Database:")
+
+st.sidebar.link_button(
+    "📥 Buka Aplikasi Input Data",
+    "http://10.123.1.200:8501/",
+    type="primary"
+)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🌐 Navigasi Cepat")
+st.sidebar.markdown("""
+- [📊 Dashboard Monitoring](http://10.123.1.200:3000/)
+- [🧠 Panduan Penggunaan](http://10.123.1.200/docs)
+- [💾 Backup Database](http://10.123.1.200:5050/)
+""")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### ℹ️ Tentang Aplikasi")
+st.sidebar.info("""
+**VURI (Verifikasi Item untuk RAB Inpres)**  
+Dibuat untuk membantu pencarian, validasi, dan penjelasan item pekerjaan konstruksi berbasis semantik.
+Versi: 1.2.5  
+Dikembangkan oleh: *Widya Febriandaru*
+""")
+with st.sidebar.expander("💬 Kirim Masukan"):
+    feedback = st.text_area("Tulis komentar atau saran:")
+    if st.button("Kirim", key="feedback_btn"):
+        st.success("Terima kasih atas masukannya!")
+############################Sidebar###############################
+
+########################################################################
+# alpha = st.sidebar.slider("Bobot Kata Kunci (α)", 0.0, 1.0, 0.55, 0.05)
+# beta = st.sidebar.slider("Bobot Fuzzy (β)", 0.0, 1.0, 0.25, 0.05)
+# gamma = st.sidebar.slider("Bobot Makna (γ)", 0.0, 1.0, 0.20, 0.05)
+
+# # Normalize total weights to 1
+# total = alpha + beta + gamma
+# alpha, beta, gamma = alpha/total, beta/total, gamma/total
+########################################################################
+
 if st.button("Cari", key="search_button"):
     if not query.strip():
         st.warning("⚠️ Please enter something to search.")
@@ -52,14 +109,11 @@ if st.button("Cari", key="search_button"):
         df = table.to_pandas()
 
         if search_type == "Deskripsi":
-            # 🔹 Vector Search
             query_vector = model.encode(query).tolist()
-            vector_results = table.search(query_vector).limit(25).to_list()
+            vector_results = table.search(query_vector).limit(100).to_list()
+            df = table.to_pandas()
 
-            # 🔹 Keyword Search
-            keyword_results = df[df["description"].str.contains(query, case=False, na=False)]
-
-            # Convert vector + keyword results to DataFrame
+            # Convert vector search results into a DataFrame
             vector_df = pd.DataFrame([
                 {
                     "code": item.get("code", ""),
@@ -67,30 +121,56 @@ if st.button("Cari", key="search_button"):
                     "classification": item.get("classification", ""),
                     "description": item.get("description", ""),
                     "url": item.get("url", ""),
-                    "source": "vector",
+                    # Convert distance to similarity (1 - normalized distance)
+                    "semantic_score": max(0.0, 1 - item.get("_distance", 1.0)),
                 }
                 for item in vector_results
             ])
 
-            keyword_df = pd.DataFrame([
-                {
-                    "code": row["code"],
-                    "name": row["name"],
-                    "classification": row["classification"],
-                    "description": row["description"],
-                    "url": row["url"],
-                    "source": "keyword",
-                }
-                for _, row in keyword_results.iterrows()
-            ])
+            # Tokenize query for lexical comparison
+            query_tokens = re.findall(r"\w+", query.lower())
 
-            final_df = pd.concat([keyword_df, vector_df]).drop_duplicates(subset=["code"]).reset_index(drop=True)
+            # === Keyword Overlap Function ===
+            def keyword_overlap(desc):
+                desc_tokens = re.findall(r"\w+", str(desc).lower())
+                if not query_tokens or not desc_tokens:
+                    return 0
+                matches = sum(token in desc_tokens for token in query_tokens)
+                return matches / len(query_tokens)
+
+            # === Fuzzy Ratio Function (handles word order / typo / inflection) ===
+            def fuzzy_ratio(a, b):
+                return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+
+            # Apply both scoring functions
+            vector_df["keyword_score"] = vector_df["description"].apply(keyword_overlap)
+            vector_df["fuzzy_score"] = vector_df["description"].apply(lambda x: fuzzy_ratio(query, str(x)))
+
+            # Normalize each score to 0–1 range
+            for col in ["semantic_score", "keyword_score", "fuzzy_score"]:
+                if vector_df[col].max() > 0:
+                    vector_df[col] = vector_df[col] / vector_df[col].max()
+
+            # === Hybrid Weighted Scoring ===
+            # α = lexical priority, β = fuzzy, γ = semantic
+            alpha = 0.55   # keyword importance
+            beta = 0.25    # fuzzy importance
+            gamma = 0.20   # semantic importance
+
+            vector_df["hybrid_score"] = (
+                alpha * vector_df["keyword_score"]
+                + beta * vector_df["fuzzy_score"]
+                + gamma * vector_df["semantic_score"]
+            )
+
+            # Sort by hybrid score (descending)
+            final_df = vector_df.sort_values(by="hybrid_score", ascending=False).head(15).reset_index(drop=True)
 
         else:
             final_df = df[df["code"].astype(str).str.contains(query, case=False, na=False)].reset_index(drop=True)
-
-        # Limit results to 15 items
-        final_df = final_df.head(15)
+            
+            # Limit results to 15 items
+            final_df = final_df.head(15)
         
         # Store results in session state
         st.session_state.search_results = final_df
