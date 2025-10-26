@@ -53,22 +53,18 @@ search_type = st.radio(
 # ======================
 # Search Logic
 # ======================
-############################Sidebar###############################
+############################ Sidebar ###############################
 st.sidebar.header("⚙️ Pengaturan Pencarian")
-theme = st.sidebar.radio("Tampilan", ["🌞 Terang", "🌙 Gelap"], horizontal=True)
 
-# Optional exact match toggle
-exact_match = st.sidebar.toggle("Hanya tampilkan hasil mirip 100%", value=False)
+st.sidebar.markdown("### 📚 Filter Regulasi")
+filter_se182 = st.sidebar.toggle("SE 182", value=False)
+filter_se30 = st.sidebar.toggle("SE 30", value=False)
+filter_pu8 = st.sidebar.toggle("Permen PU 8", value=False)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🧩 Manajemen Data")
 st.sidebar.write("Update Database:")
-
-st.sidebar.link_button(
-    "📥 Buka Aplikasi Input Data",
-    "http://10.123.1.200:8501/",
-    type="primary"
-)
+st.sidebar.link_button("📥 Buka Aplikasi Input Data", "http://10.123.1.200:8501/", type="primary")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🌐 Navigasi Cepat")
@@ -86,27 +82,27 @@ Dibuat untuk membantu pencarian, validasi, dan penjelasan item pekerjaan konstru
 Versi: 1.2.5  
 Dikembangkan oleh: *Widya Febriandaru*
 """)
+
 with st.sidebar.expander("💬 Kirim Masukan"):
     feedback = st.text_area("Tulis komentar atau saran:")
     if st.button("Kirim", key="feedback_btn"):
         st.success("Terima kasih atas masukannya!")
-############################Sidebar###############################
-
-########################################################################
-# alpha = st.sidebar.slider("Bobot Kata Kunci (α)", 0.0, 1.0, 0.55, 0.05)
-# beta = st.sidebar.slider("Bobot Fuzzy (β)", 0.0, 1.0, 0.25, 0.05)
-# gamma = st.sidebar.slider("Bobot Makna (γ)", 0.0, 1.0, 0.20, 0.05)
-
-# # Normalize total weights to 1
-# total = alpha + beta + gamma
-# alpha, beta, gamma = alpha/total, beta/total, gamma/total
-########################################################################
+############################ Sidebar ###############################
 
 if st.button("Cari", key="search_button"):
     if not query.strip():
         st.warning("⚠️ Please enter something to search.")
     else:
         df = table.to_pandas()
+
+        # 🟩 MOVE FILTER LOGIC HERE - Define active_filters at the beginning
+        active_filters = []
+        if filter_se182:
+            active_filters.append("Bidang PSDA - SE no.182 Tahun 2025")
+        if filter_se30:
+            active_filters.append("Bidang Bina Marga - SE no.182 Tahun 2025")
+        if filter_pu8:
+            active_filters.append("Permen PU no.8 Tahun 2023")
 
         if search_type == "Deskripsi":
             query_vector = model.encode(query).tolist()
@@ -165,9 +161,18 @@ if st.button("Cari", key="search_button"):
 
             # Sort by hybrid score (descending)
             final_df = vector_df.sort_values(by="hybrid_score", ascending=False).head(15).reset_index(drop=True)
-
+            
+            # 🟩 APPLY FILTERS AFTER final_df IS DEFINED
+            if active_filters:
+                final_df = final_df[final_df["classification"].isin(active_filters)]
+            
         else:
+            # Code-based search
             final_df = df[df["code"].astype(str).str.contains(query, case=False, na=False)].reset_index(drop=True)
+            
+            # 🟩 APPLY FILTERS TO CODE-BASED SEARCH TOO
+            if active_filters:
+                final_df = final_df[final_df["classification"].isin(active_filters)]
             
             # Limit results to 15 items
             final_df = final_df.head(15)
@@ -175,14 +180,19 @@ if st.button("Cari", key="search_button"):
         # Store results in session state
         st.session_state.search_results = final_df
         st.session_state.show_results = True
+        st.session_state.active_filters = active_filters  # Store for display
 
 # ======================
 # Display Results
 # ======================
 if st.session_state.get("show_results", False) and "search_results" in st.session_state:
     final_df = st.session_state.search_results
+    active_filters = st.session_state.get("active_filters", [])
     
     st.subheader("📚 Hasil pencarian")
+    if active_filters:
+        st.info(f"Filter aktif: {', '.join(active_filters)}")
+
     st.info(f"Menampilkan {len(final_df)} buah hasil pencarian")
     
     if final_df.empty:
