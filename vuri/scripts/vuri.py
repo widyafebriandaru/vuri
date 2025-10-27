@@ -57,9 +57,11 @@ search_type = st.radio(
 st.sidebar.header("⚙️ Pengaturan Pencarian")
 
 st.sidebar.markdown("### 📚 Filter Regulasi")
-filter_se182 = st.sidebar.toggle("SE 182", value=False)
-filter_se30 = st.sidebar.toggle("SE 30", value=False)
+filter_se182_psda = st.sidebar.toggle("SE 182 - PSDA", value=False)
+filter_se182_binaMarga = st.sidebar.toggle("SE 182 - Bina Marga", value=False)
 filter_pu8 = st.sidebar.toggle("Permen PU 8", value=False)
+filter_se30_psda = st.sidebar.toggle("SE 30 - PSDA", value=False)
+filter_se30_ciptaKarya = st.sidebar.toggle("SE 30 - Cipta Karya", value=False)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🧩 Manajemen Data")
@@ -68,25 +70,93 @@ st.sidebar.link_button("📥 Buka Aplikasi Input Data", "http://10.123.1.200:850
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🌐 Navigasi Cepat")
-st.sidebar.markdown("""
-- [📊 Dashboard Monitoring](http://10.123.1.200:3000/)
-- [🧠 Panduan Penggunaan](http://10.123.1.200/docs)
-- [💾 Backup Database](http://10.123.1.200:5050/)
-""")
+st.sidebar.markdown(
+    """
+    <style>
+    .sidebar-link {
+        font-size: 15px;
+        line-height: 1.3;
+    }
+    .sidebar-link a {
+        text-decoration: none;
+        color: inherit;
+    }
+    .sidebar-link a:hover {
+        text-decoration: underline;
+    }
+    </style>
+    <div class="sidebar-link">
+    <a href="https://sites.google.com/view/kegiatan-irigasi-dan-rawa-i/laporan-progress/" target="_blank">🖥️ Mondas</a><br>
+    <a href="https://www.appsheet.com/start/c3043020-55fd-411d-93b0-d7fd663868ee" target="_blank">📈 Sifadi</a><br>
+    <a href="https://sites.google.com/view/pengembangankompetensibbwsms/home/" target="_blank">🏢 KompoNext20JP</a><br>
+    <a href="https://lookerstudio.google.com/reporting/966b0e6f-75a6-4888-89d4-183117664c2f/page/ttCYF/" target="_blank">📊 Dashboard Deviasi</a><br>
+    <a href="https://drive.google.com/file/d/1wvE8wEQ4sxBECAsqY5FbupmfBetH-g7-/view?usp=sharing" target="_blank">📙 Manual Dokumentasi Geotagging</a><br>
+    <a href="https://www.autodesk.com/blogs/construction/common-data-environment/" target="_blank">📘 Panduan Penggunaan CDE</a>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### ℹ️ Tentang Aplikasi")
-st.sidebar.info("""
-**VURI (Verifikasi Item untuk RAB Inpres)**  
-Dibuat untuk membantu pencarian, validasi, dan penjelasan item pekerjaan konstruksi berbasis semantik.
-Versi: 1.2.5  
-Dikembangkan oleh: *Widya Febriandaru*
-""")
+# CSS custom untuk memperkecil font dan mengatur tampilannya
+st.sidebar.markdown(
+    """
+    <style>
+    .sidebar-info {
+        font-size: 13px;          /* ubah ukuran font */
+        line-height: 1.4;         /* jarak antar baris */
+        color: #FFFFFF;           /* warna teks */
+        text-align: left;      /* rata kiri kanan */
+    }
+    .sidebar-info b {
+        color: #2c6df2;           /* warna teks tebal */
+    }
+    .sidebar-info em {
+        color: #555;              /* warna untuk teks miring */
+    }
+        .sidebar-info a {
+        color: #555 !important;
+        text-decoration: none;
+    }
+    .sidebar-info a:hover {
+        color: #2c6df2 !important;
+        text-decoration: underline;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+st.sidebar.markdown(
+    """
+    <div class="sidebar-info">
+    <strong>VURI (Verifikasi Item untuk RAB Inpres)</strong><br>
+    Dibuat untuk membantu pencarian, validasi, dan penjelasan item pekerjaan konstruksi berbasis pencarian.<br><br>
+    Dikembangkan oleh: <em><a href="https://github.com/widyafebriandaru/vuri" target="_blank">Widya Febriandaru</a></em>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 with st.sidebar.expander("💬 Kirim Masukan"):
     feedback = st.text_area("Tulis komentar atau saran:")
     if st.button("Kirim", key="feedback_btn"):
-        st.success("Terima kasih atas masukannya!")
+        if feedback.strip():
+            # Ganti form_id dan entry_xxx dengan milik Google Form kamu
+            form_url = "https://docs.google.com/forms/d/e/1FAIpQLScBcZQt71iAyIhwDEZW_FXE18viuXuw8vN113YQyy93KwXhjg/formResponse"
+            form_data = {"entry.1684289946": feedback}  # sesuaikan entry ID dari Google Form
+            
+            try:
+                response = requests.post(form_url, data=form_data)
+                if response.status_code == 200:
+                    st.success("✅ Terima kasih atas masukannya!")
+                else:
+                    st.info("✔️ Masukan terkirim (dengan status non-200, tapi aman).")
+            except Exception as e:
+                st.error(f"Gagal mengirim masukan: {e}")
+        else:
+            st.warning("Silakan isi kolom masukan sebelum mengirim.")
+
 ############################ Sidebar ###############################
 
 if st.button("Cari", key="search_button"):
@@ -97,12 +167,16 @@ if st.button("Cari", key="search_button"):
 
         # 🟩 MOVE FILTER LOGIC HERE - Define active_filters at the beginning
         active_filters = []
-        if filter_se182:
+        if filter_se182_psda:
             active_filters.append("Bidang PSDA - SE no.182 Tahun 2025")
-        if filter_se30:
+        if filter_se182_binaMarga:
             active_filters.append("Bidang Bina Marga - SE no.182 Tahun 2025")
         if filter_pu8:
             active_filters.append("Permen PU no.8 Tahun 2023")
+        if filter_se30_psda:
+            active_filters.append("Bidang PSDA - SE no.30 Tahun 2025")
+        if filter_se30_ciptaKarya:
+            active_filters.append("Bidang Cipta Karya - SE no.30 Tahun 2025")
 
         if search_type == "Deskripsi":
             query_vector = model.encode(query).tolist()
@@ -200,7 +274,7 @@ if st.session_state.get("show_results", False) and "search_results" in st.sessio
     else:
         for idx, row in final_df.iterrows():
             source = row.get("source", "")
-            prefix = "⭐" if source == "keyword" or search_type == "Kode" else ""
+            prefix = "⭐" if search_type == "Kode" else ""
 
             # Create unique keys
             item_key = f"{row['code']}_{idx}"
@@ -212,7 +286,7 @@ if st.session_state.get("show_results", False) and "search_results" in st.sessio
                 st.session_state.expanded_states[expander_key] = False
 
             # Display content in expander - initially CLOSED
-            with st.expander(f"{prefix} {idx+1}. [{row['code']}] {row['name']}", 
+            with st.expander(f"{prefix} {idx+1}. {row['name']}", 
                            expanded=st.session_state.expanded_states[expander_key]):
                 
                 st.markdown(f"**📝 Deskripsi:** {row['description']}")

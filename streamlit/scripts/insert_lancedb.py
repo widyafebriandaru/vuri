@@ -13,7 +13,7 @@ table = db.open_table("ahsp")
 # Load embedding model
 model = SentenceTransformer("all-mpnet-base-v2", device="cpu")
 
-st.title("LanceDB AHSP Manager")
+st.title("Vuri Database Manager")
 
 # ======================
 # Section: Insert from Excel
