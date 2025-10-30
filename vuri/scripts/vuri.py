@@ -106,7 +106,6 @@ st.sidebar.markdown(
     .sidebar-info {
         font-size: 13px;          /* ubah ukuran font */
         line-height: 1.4;         /* jarak antar baris */
-        color: #FFFFFF;           /* warna teks */
         text-align: left;      /* rata kiri kanan */
     }
     .sidebar-info b {
@@ -138,24 +137,46 @@ st.sidebar.markdown(
     unsafe_allow_html=True
 )
 
+import streamlit as st
+import requests
+
 with st.sidebar.expander("💬 Kirim Masukan"):
-    feedback = st.text_area("Tulis komentar atau saran:")
+    # Gunakan session_state agar bisa dikosongkan nanti
+    if "name" not in st.session_state:
+        st.session_state.name = ""
+    if "feedback" not in st.session_state:
+        st.session_state.feedback = ""
+
+    name = st.text_input("Nama Anda:", value=st.session_state.name, key="name_input")
+    feedback = st.text_area("Tulis komentar atau saran:", value=st.session_state.feedback, key="feedback_input")
+
     if st.button("Kirim", key="feedback_btn"):
-        if feedback.strip():
-            # Ganti form_id dan entry_xxx dengan milik Google Form kamu
+        if name.strip() and feedback.strip():
             form_url = "https://docs.google.com/forms/d/e/1FAIpQLScBcZQt71iAyIhwDEZW_FXE18viuXuw8vN113YQyy93KwXhjg/formResponse"
-            form_data = {"entry.1684289946": feedback}  # sesuaikan entry ID dari Google Form
-            
+
+            form_data = {
+                "entry.1684289946": feedback,
+                "entry.950375998": name
+            }
+
             try:
                 response = requests.post(form_url, data=form_data)
                 if response.status_code == 200:
                     st.success("✅ Terima kasih atas masukannya!")
                 else:
-                    st.info("✔️ Masukan terkirim (dengan status non-200, tapi aman).")
+                    st.info("✔️ Masukan terkirim (status non-200, tapi aman).")
+
+                # 🔹 Kosongkan field setelah submit
+                st.session_state.name = ""
+                st.session_state.feedback = ""
+                st.session_state["name_input"] = ""
+                st.session_state["feedback_input"] = ""
+
             except Exception as e:
                 st.error(f"Gagal mengirim masukan: {e}")
         else:
-            st.warning("Silakan isi kolom masukan sebelum mengirim.")
+            st.warning("Silakan isi nama dan kolom masukan sebelum mengirim.")
+
 
 ############################ Sidebar ###############################
 
@@ -273,8 +294,16 @@ if st.session_state.get("show_results", False) and "search_results" in st.sessio
         st.info("Tidak ada hasil yang cocok.")
     else:
         for idx, row in final_df.iterrows():
-            source = row.get("source", "")
-            prefix = "⭐" if search_type == "Kode" else ""
+            # ✅ FIX: Sistem bintang seperti kode lama
+            if search_type == "Kode":
+                prefix = "⭐"
+            else:
+                # Untuk pencarian deskripsi, beri bintang pada hasil dengan hybrid_score tinggi
+                hybrid_score = row.get("hybrid_score", 0)
+                if hybrid_score > 0.8:  # Threshold untuk hasil terbaik
+                    prefix = "⭐"
+                else:
+                    prefix = ""
 
             # Create unique keys
             item_key = f"{row['code']}_{idx}"
