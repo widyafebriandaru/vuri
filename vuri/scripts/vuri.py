@@ -327,7 +327,7 @@ if st.session_state.get("show_results", False) and "search_results" in st.sessio
                 if image_path and os.path.exists(image_path):
                     st.image(image_path, caption=img_name, use_container_width=True)
                 elif image_path:
-                    st.warning(f"⚠️ Gambar tidak tersedia: {image_path}")
+                    st.warning(f" ✉️Ini adalah header untuk beberapa sub-item pekerjaan: {image_path}")
                 else:
                     st.info("No image available for this item.")
 
